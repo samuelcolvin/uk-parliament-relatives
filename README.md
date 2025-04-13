@@ -4,8 +4,8 @@ As discussed on The Rest is Politics [last week](https://open.spotify.com/episod
 
 ## Methodology
 
-* Get a list of current MPs from [here](https://en.wikipedia.org/wiki/List_of_MPs_elected_in_the_2024_United_Kingdom_general_election)
-* Go through each wikipedia page and use [PydanticAI](https://ai.pydantic.dev) with GPT 4o (although other models will probably perform equally well) to find and extract a any relations to the PM who are or were politically active
+* Get a list of current MPs from [wikipedia](https://en.wikipedia.org/wiki/List_of_MPs_elected_in_the_2024_United_Kingdom_general_election)
+* Go through each wikipedia page and use [PydanticAI](https://ai.pydantic.dev) with GPT 4o (although other models will probably perform equally well) to find and extract any relations to the PM who are or were politically active
 * Summarize the results
 
 Full details for each MP can be seen in [`mp_relations.json`](mp_relations.json).
@@ -16,16 +16,12 @@ Results across all parties ("ancestor" means parent, grandparent, uncle, aunt e.
 
 | political_ancestor_percentage | political_relations_percentage | mps |
 | ---                           | ---                            | --- |
-| f64                           | f64                            | u32 |
-|-------------------------------|--------------------------------|-----|
 | 23.69                         | 34.46                          | 650 |
 
 Results per party:
 
 | party            | political_ancestor_percentage | political_relations_percentage | mps |
 | ---              | ---                           | ---                            | --- |
-| str              | f64                           | f64                            | u32 |
-|------------------|-------------------------------|--------------------------------|-----|
 | Conservative     | 37.19                         | 44.63                          | 121 |
 | Other            | 25.0                          | 36.36                          | 44  |
 | Labour           | 20.82                         | 32.2                           | 413 |
@@ -60,6 +56,6 @@ print(politicans_prop_political_ancestors / prop_ancestors_political)
 #> 66.43
 ```
 
-So by my (potentially wrong!) maths, current MPs are 66x more likely to have political ancestors than the average person.
+So by my (potentially wrong!) maths, suggests current MPs are 66x more likely to have political ancestors than the average person.
 
 If the probabilities close ancestors where political are not independent (very likely), then the multiple would go up significantly. E.g. if each person only really has 3 chances of a political ancestor, then the multiple goes up to 221x.
