@@ -1,6 +1,6 @@
 # Members of UK Parliament with Political Relations
 
-As discussed on The Rest is Politics last week.
+As discussed on The Rest is Politics [last week](https://open.spotify.com/episode/3YYeTtCYn5urWiz4QfA8e5).
 
 ## Methodology
 
@@ -9,6 +9,8 @@ As discussed on The Rest is Politics last week.
 * Summarize the results
 
 Full details for each MP can be seen in [`mp_relations.json`](mp_relations.json).
+
+## Results
 
 Results across all parties ("ancestor" means parent, grandparent, uncle, aunt e.g. not siblings or spouses):
 
@@ -29,15 +31,14 @@ Results per party:
 | Labour           | 20.82                         | 32.2                           | 413 |
 | Liberal Democrat | 16.67                         | 29.17                          | 72  |
 
-# How Representative is that
+# How Representative is that?
 
-How likely is it that UK members of Parliament are representative of the UK population in terms of ancestor political engagement?
+How likely is it that UK members of Parliament are representative of the UK population in terms of ancestral political engagement?
 
 * Average age of an MP [is about](https://commonslibrary.parliament.uk/house-of-commons-trends-the-age-of-mps/) 50.
 * UK population in 1975 [was](https://www.macrotrends.net/global-metrics/countries/gbr/united-kingdom/population) 56M.
 * Assume there were 20,000 councellors and MPs in 1975 (no idea how accurate that numbers is)
-* Assuming two parents with independent changes of being politically active (bad assumption, but how bad?)
-* assume each person has 10 ancestors who could have been political (and be included in their wikipedia page)
+* assume each person has 10 close ancestors (close enough to be included in the wikipedia page) who could have been political and assume (bad assumption) that those probabilities are independent
 
 I think (My statistics are not that good!), the probability of being born with political ancestors is:
 
@@ -48,7 +49,7 @@ non_politicians = population - politicians
 # this is the probability someone is not a politician
 prop_not_politicians = non_politicians / population
 # probability that all 10 ancestors not a politician
-prop_ancestors_not_political = prop_not_politicians ** 10
+prop_ancestors_not_political = prop_not_politicians ** 3
 # probability that at least one ancestor is a politician
 prop_ancestors_political = 1 - prop_ancestors_not_political
 print(prop_ancestors_political)
@@ -60,3 +61,5 @@ print(politicans_prop_political_ancestors / prop_ancestors_political)
 ```
 
 So by my (potentially wrong!) maths, current MPs are 66x more likely to have political ancestors than the average person.
+
+If the probabilities close ancestors where political are not independent (very likely), then the multiple would go up significantly. E.g. if each person only really has 3 chances of a political ancestor, then the multiple goes up to 221x.
