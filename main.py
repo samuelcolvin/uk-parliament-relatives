@@ -8,6 +8,7 @@ from typing import cast, Literal
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 import logfire
+from polars import DataFrame, Config
 from pydantic import BaseModel, TypeAdapter, computed_field
 from httpx import AsyncClient
 from pydantic_ai import Agent
@@ -60,7 +61,14 @@ class PoliticalRelation(BaseModel, use_attribute_docstrings=True):
 class MPRelations(MP):
     relations: list[PoliticalRelation]
 
-    def ancestors(self) -> int:
+    @computed_field
+    @property
+    def political_relations_count(self) -> int:
+        return len(self.relations)
+
+    @computed_field
+    @property
+    def political_ancestor_count(self) -> int:
         return sum(r.is_ancestor() for r in self.relations)
 
 
@@ -70,10 +78,6 @@ mps_ta = TypeAdapter(list[MP])
 
 
 async def get_mps(client: AsyncClient) -> list[MP]:
-    raw_mps_path = Path('mps.json')
-    if raw_mps_path.exists():
-        return mps_ta.validate_json(raw_mps_path.read_bytes())
-
     html = await get_html(
         client, 'https://en.wikipedia.org/wiki/List_of_MPs_elected_in_the_2024_United_Kingdom_general_election'
     )
@@ -99,7 +103,6 @@ async def get_mps(client: AsyncClient) -> list[MP]:
             mp = MP(id=i, name=name, url=f'https://en.wikipedia.org/{path}', raw_party=party)
             mps.append(mp)
 
-    raw_mps_path.write_bytes(mps_ta.dump_json(mps, indent=2))
     return mps
 
 
@@ -123,15 +126,14 @@ async def extract_relations(client: AsyncClient, raw_mps: list[MP]) -> list[MPRe
         mp_relations = []
 
     async def extract_worker(queue: asyncio.Queue[MP]):
-        try:
-            while True:
-                mp = await queue.get()
-                # debug(mp)
-                if any(mp.id == r.id for r in mp_relations):
-                    queue.task_done()
-                    progress.update(extract_task, advance=1)
-                    continue
+        while True:
+            mp = await queue.get()
+            if any(mp.id == r.id for r in mp_relations):
+                queue.task_done()
+                progress.update(extract_task, advance=1)
+                continue
 
+            try:
                 html = await get_html(client, mp.url)
                 soup = BeautifulSoup(html, 'html.parser')
 
@@ -139,13 +141,16 @@ async def extract_relations(client: AsyncClient, raw_mps: list[MP]) -> list[MPRe
                 assert body is not None, f'Could not find body element in {mp.url}'
 
                 r = await agent.run(body.text)
+            except Exception as e:
+                print(f'Error extracting relations for {mp}: {e}')
+                queue.task_done()
+                progress.update(extract_task, advance=1)
+                raise
+            else:
                 mp_relations.append(MPRelations(**mp.model_dump(), relations=r.data))
 
                 queue.task_done()
                 progress.update(extract_task, advance=1)
-        except Exception as e:
-            print(f'Worker error: {e}')
-            raise
 
     with Progress() as progress:
         extract_task = progress.add_task('Extracting relations...', total=len(raw_mps))
@@ -157,7 +162,7 @@ async def extract_relations(client: AsyncClient, raw_mps: list[MP]) -> list[MPRe
             queue.put_nowait(mp)
 
         try:
-            tasks = [asyncio.create_task(extract_worker(queue)) for _ in range(20)]
+            tasks = [asyncio.create_task(extract_worker(queue)) for _ in range(12)]
             await queue.join()
             for task in tasks:
                 task.cancel()
@@ -166,22 +171,6 @@ async def extract_relations(client: AsyncClient, raw_mps: list[MP]) -> list[MPRe
                 mp_relations_path.write_bytes(mp_relations_ta.dump_json(mp_relations, indent=2))
 
     return mp_relations
-
-
-def write_csv(mp_relations: list[MPRelations]):
-    path = Path('mp_relations.csv')
-    with path.open('w', newline='') as csvfile:
-        fieldnames = list(MP.model_fields.keys()) + ['party', 'relations', 'ancestors']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-        writer.writeheader()
-        for mp in mp_relations:
-            d = mp.model_dump(exclude={'relations'})
-            d.update(
-                relations=len(mp.relations),
-                ancestors=mp.ancestors(),
-            )
-            writer.writerow({k: str(v) for k, v in d.items()})
 
 
 async def get_html(client: AsyncClient, url: str) -> str:
@@ -197,7 +186,35 @@ async def main():
             raw_mps = await get_mps(client)
         with logfire.span('Extracting relations'):
             mp_relations = await extract_relations(client, raw_mps)
-    write_csv(mp_relations)
+
+    df = DataFrame(
+        [
+            m.model_dump(include={'name', 'party', 'political_relations_count', 'political_ancestor_count'})
+            for m in mp_relations
+        ]
+    )
+    with Config() as cfg:
+        cfg.set_tbl_formatting('ASCII_MARKDOWN')
+        all_sql = """
+select
+  round(sum(cast(political_ancestor_count>0 as float)) / count(*) * 100, 2) as political_ancestor_percentage,
+  round(sum(cast(political_relations_count>0 as float)) / count(*) * 100, 2) as political_relations_percentage,
+  count(*) as mps
+from self
+"""
+        print(df.sql(all_sql))
+
+        party_sql = """
+select
+  party,
+  round(sum(cast(political_ancestor_count>0 as float)) / count(*) * 100, 2) as political_ancestor_percentage,
+  round(sum(cast(political_relations_count>0 as float)) / count(*) * 100, 2) as political_relations_percentage,
+  count(*) as mps
+from self
+group by party
+order by political_ancestor_percentage desc
+"""
+        print(df.sql(party_sql))
 
 
 if __name__ == '__main__':
