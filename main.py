@@ -155,7 +155,6 @@ async def extract_relations(client: AsyncClient, raw_mps: list[MP]) -> list[MPRe
     with Progress() as progress:
         extract_task = progress.add_task('Extracting relations...', total=len(raw_mps))
 
-        raw_mps = mps_ta.validate_json(Path('mps.json').read_bytes())
         queue: asyncio.Queue[MP] = asyncio.Queue()
 
         for mp in raw_mps:
