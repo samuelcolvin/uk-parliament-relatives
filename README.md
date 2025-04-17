@@ -45,7 +45,7 @@ non_politicians = population - politicians
 # this is the probability someone is not a politician
 prop_not_politicians = non_politicians / population
 # probability that all 10 ancestors not a politician
-prop_ancestors_not_political = prop_not_politicians ** 3
+prop_ancestors_not_political = prop_not_politicians ** 10
 # probability that at least one ancestor is a politician
 prop_ancestors_political = 1 - prop_ancestors_not_political
 print(prop_ancestors_political)

@@ -1,6 +1,4 @@
 import asyncio
-from contextlib import ExitStack
-import csv
 from pathlib import Path
 from textwrap import dedent
 from typing import cast, Literal
@@ -100,7 +98,7 @@ async def get_mps(client: AsyncClient) -> list[MP]:
             party_a = cells[5].find('a')
             assert isinstance(party_a, Tag), 'Party not found'
             party = party_a['title']
-            mp = MP(id=i, name=name, url=f'https://en.wikipedia.org/{path}', raw_party=party)
+            mp = MP(id=i, name=name, url=f'https://en.wikipedia.org/{path}', raw_party=party)  # type: ignore
             mps.append(mp)
 
     return mps
